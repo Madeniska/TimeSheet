@@ -407,38 +407,27 @@
 </script>
 
 <script>
-    (function () {
-        const timeFields = [
-            "start",
-            "end",
-            "templateStart",
-            "templateEnd",
-            "nightStart",
-            "nightEnd"
-        ];
-
-        timeFields.forEach(id => {
-            const input = document.getElementById(id);
-
-            if (!input) return;
-
+(function () {
+    const timeFields = ["start", "end", "templateStart", "templateEnd", "nightStart", "nightEnd"];
+    timeFields.forEach(id => {
+        const input = document.getElementById(id);
+        if (!input) return;
+        if (window.AndroidTime && typeof window.AndroidTime.openTimePicker === 'function') {
             input.readOnly = true;
-            input.setAttribute("inputmode", "none");
-
-            input.addEventListener("click", function (event) {
-                event.preventDefault();
-
-                if (window.AndroidTime) {
-                    AndroidTime.openTimePicker(
-                        id,
-                        input.value || "08:00"
-                    );
-                } else {
-                    notify("AndroidTime не підключений");
-                }
+            input.setAttribute('inputmode', 'none');
+            input.addEventListener('click', () => {
+                window.AndroidTime.openTimePicker(id, input.value || '08:00');
             });
-        });
-    })();
+        } else {
+            input.type = 'time';
+            input.readOnly = false;
+            input.removeAttribute('inputmode');
+            input.removeAttribute('maxlength');
+            input.removeAttribute('placeholder');
+            input.step = 60;
+        }
+    });
+})();
 </script>
 
 <script>
@@ -447,4 +436,3 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 </script>
 </body></html>
-
