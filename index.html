@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TimeSheet</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TimeSheet">
+<link rel="apple-touch-icon" href="./icon-180.png">
+
+    <style>
+        :root{color-scheme:dark;--bg:#111827;--card:#1f2937;--line:#405066;--muted:#aab4c4;--green:#86efac}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f3f4f6;font:14px Arial,sans-serif}main{max-width:900px;margin:auto;padding:10px}h1{font-size:20px;margin:0}h2{font-size:18px}h3{font-size:15px}button,input,select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:10px}button{background:#334155;color:white;cursor:pointer}button:active{opacity:.8}input,select{background:#111827;color:white;width:100%;min-width:0}input[type=color]{height:43px;padding:4px}label{display:block;color:#cbd5e1;margin:11px 0 5px}.card{background:var(--card);border-radius:12px;padding:13px;margin:12px 0}.row{display:flex;align-items:center;gap:8px}.row>*{flex:1;min-width:0}.primary{background:#2563eb}.danger{background:#991b1b}.muted{color:var(--muted);font-size:12px;line-height:1.5}.hidden{display:none!important}header{display:flex;gap:12px;align-items:center;margin:10px 0}header button{flex:none;font-size:20px}.monthNav{display:flex;align-items:center;gap:8px}.monthNav h2{flex:1;text-align:center;text-transform:capitalize}.monthNav button{flex:none}.compact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--card);border-radius:12px;overflow:hidden}.metric{min-width:0;text-align:center;padding:11px 2px}.metric:not(:nth-child(3n)){border-right:1px solid var(--line)}.metric:nth-child(-n+3){border-bottom:1px solid var(--line)}.metric small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;margin-bottom:6px}.metric b{display:block;font-size:clamp(11px,3vw,17px);white-space:nowrap}.metric:last-child b{color:var(--green)}.week,.calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.week{text-align:center;color:var(--muted);margin:12px 0 6px}.day{background:var(--bg);border:1px solid var(--line);border-radius:6px;min-height:86px;padding:4px;cursor:pointer;overflow:hidden}.day.selected{outline:2px solid #eee}.day.today{border-color:#facc15}.blank{visibility:hidden}.num{font-weight:bold;margin-bottom:5px}.badge{display:block;border-radius:4px;color:white;font-size:10px;padding:4px;margin:3px 0;overflow-wrap:anywhere}.dayTotal{font-size:10px;font-weight:bold;margin-top:5px}.entry,.template{border:1px solid var(--line);border-radius:9px;padding:11px;margin:9px 0}.template{background:#172233}.entry p{line-height:1.5}.menuButton{display:block;width:100%;text-align:left;margin:9px 0}.separator{border:0;border-top:1px solid var(--line);margin:20px 0}.notice{color:#fca5a5;font-size:12px}.warning{padding:11px;border:1px solid #7f3645;background:#38252b;border-radius:9px}.dot{display:inline-block;width:13px;height:13px;border-radius:50%;flex:none}.templateTop,.statName{display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}.templateTop strong{flex:1}.statsGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{background:var(--bg);padding:12px;border-radius:8px}.stat b{display:block;font-size:17px;margin-top:6px}.templateStat{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px;background:var(--bg);border-radius:8px;margin:7px 0}.templateStat b{white-space:nowrap}#overlay{display:none;position:fixed;inset:0;background:#0009;z-index:9}#menu{position:fixed;inset:0 auto 0 0;width:min(370px,94vw);background:var(--card);z-index:10;padding:16px;overflow-y:auto;transform:translateX(-105%);transition:transform .2s}body.menuOpen #menu{transform:translateX(0)}body.menuOpen #overlay{display:block}.menuPage{display:none}.menuPage.active{display:block}.menuHeader{display:flex;align-items:center;gap:10px}.menuHeader h2{flex:1}.menuHeader button{flex:none}.fileInput{display:none}@media(max-width:500px){main{padding:7px}.card{padding:10px}.day{min-height:77px;padding:3px}.badge,.dayTotal{font-size:9px}.metric small{font-size:9px}}
+
+        /* Календар: фіксована висота комірок незалежно від кількості змін */
+        .calendar{grid-auto-rows:86px}
+        .day{height:86px;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+        .day .num{flex:none}
+        .day .badge{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;margin:2px 0;padding:4px 3px}
+        .day .moreShifts{flex:none;font-size:10px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .day .dayTotal{margin-top:auto;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        @media(max-width:500px){.calendar{grid-auto-rows:77px}.day{height:77px}.day .badge{font-size:9px;padding:3px 2px}.day .moreShifts{font-size:9px}}
+
+        /* Діалоги підтвердження працюють навіть без WebChromeClient */
+        #wsDialogBackdrop{position:fixed;inset:0;background:#000b;z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+        #wsDialogBackdrop.visible{display:flex}
+        #wsDialog{width:min(400px,100%);background:#1f2937;border:1px solid #64748b;border-radius:14px;padding:18px;box-shadow:0 15px 40px #0009}
+        #wsDialogMessage{white-space:pre-wrap;line-height:1.5;margin:0 0 15px}
+        #wsDialogInput{margin-bottom:14px}
+        #wsDialogActions{display:flex;gap:10px;justify-content:flex-end}
+        #wsDialogActions button{flex:1}
+
+        /* Відступ від системного годинника й акуратна кнопка меню */
+        main{padding-top:max(36px, env(safe-area-inset-top, 0px))}
+        #menu{padding-top:max(36px, env(safe-area-inset-top, 0px))}
+        #openMenu{width:46px;height:46px;display:grid;place-items:center;padding:0;border-radius:12px;font-size:23px;line-height:1;background:#334155;flex:none}
+        header{min-height:48px;margin-top:0;margin-bottom:14px}
+        #wsDialogActions{flex-wrap:wrap}
+        #wsDialogActions button{flex:1 1 100px}
+
+        /* Очищення даних: компактні картки замість суцільних червоних кнопок */
+        .cleanHeader{margin:5px 0 17px}
+        .cleanEyebrow{display:block;color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:8px}
+        .cleanHeader h3{font-size:20px;letter-spacing:-.4px;margin:0 0 7px;color:#f8fafc}
+        .cleanHeader>p{margin:0;color:#94a3b8;line-height:1.55;font-size:12px}
+        .cleanNotice{display:flex;gap:11px;align-items:flex-start;padding:13px;border:1px solid #605037;border-radius:12px;background:#302b26;margin:0 0 15px}
+        .cleanNoticeIcon{width:23px;height:23px;flex:none;display:grid;place-items:center;border-radius:50%;background:#f59e0b;color:#211b0c;font-weight:800;font-size:14px}
+        .cleanNotice strong{font-size:12px;color:#fde68a}
+        .cleanNotice p{margin:5px 0 0;color:#d0c5b6;line-height:1.5;font-size:11px}
+        .cleanActions{display:grid;gap:11px}
+        .cleanCard{padding:13px;border:1px solid #3b4b61;border-radius:13px;background:#172231}
+        .cleanCardTop{display:flex;align-items:center;gap:11px;min-width:0}
+        .cleanIcon{width:37px;height:37px;border-radius:10px;background:#2b3d54;color:#bfdbfe;display:grid;place-items:center;flex:none;font-size:20px;font-weight:700}
+        .cleanCardText{min-width:0;flex:1}
+        .cleanCardText strong{display:block;font-size:13px;color:#f1f5f9}
+        .cleanDate{margin:5px 0 0;color:#9eacc0;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+        .cleanDelete{width:100%;margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#30262b;border:1px solid #77414b;border-radius:9px;padding:10px 12px;text-align:left;color:#fca5a5;font-size:12px;font-weight:700;min-height:39px}
+        .cleanDelete:active{background:#55303a}
+        .cleanDelete span{font-size:16px;line-height:1}
+        .cleanCardCritical{border-color:#70404a;background:#291f2a}
+        .cleanIconDanger{background:#5b2b37;color:#fecaca}
+        .cleanDeleteCritical{background:#a11c26;color:#fff;border-color:#b52630}
+        .cleanDeleteCritical:active{background:#82141d}
+        .cleanFootnote{font-size:11px;color:#94a3b8;line-height:1.5;margin:14px 2px 6px}
+        /* Фіксований розмір днів, незалежно від кількості змін */
+        .calendar{grid-auto-rows:86px;align-items:stretch}
+        .day{height:86px;min-height:0;min-width:0;overflow:hidden}
+        .calendarShiftLabel{white-space:normal;overflow:hidden;overflow-wrap:anywhere;line-height:1.25;max-height:39px;padding:4px 2px;text-align:center}
+        .moreShifts{font-size:10px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        @media(max-width:500px){.calendar{grid-auto-rows:77px}.day{height:77px}.calendarShiftLabel{font-size:9px;padding:3px 1px;max-height:34px}.moreShifts{font-size:9px}}
+
+        /* Workshit 1.1: seven columns, no sideways scrolling */
+        html,body{max-width:100%;overflow-x:hidden}
+        .calendar,.week{grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;width:100%;overflow:visible}
+        .calendar{grid-auto-rows:92px}
+        .day{height:92px;min-height:0;padding:3px 1px;border-radius:4px;min-width:0}
+        .day .num{text-align:center;font-size:12px;margin:1px 0 4px}
+        .day .badge{font-size:clamp(7px,1.8vw,10px);padding:2px 1px;line-height:15px;letter-spacing:-.35px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:clip;margin:2px 0;border-radius:3px}
+        .day .moreShifts{font-size:9px;text-align:center;line-height:19px;margin:2px 0;white-space:nowrap}
+        @media(max-width:500px){.calendar{grid-auto-rows:92px}.day{height:92px}.day .badge{font-size:clamp(7px,1.8vw,9px);padding:2px 0}}
+        #wsSheetBackdrop{position:fixed;inset:0;background:#0009;z-index:30;display:none}
+        #wsSheetBackdrop.open{display:block}
+        #wsDaySheet{position:fixed;bottom:0;left:0;right:0;z-index:31;background:#202b3a;border:1px solid #4b5b70;border-radius:22px 22px 0 0;padding:18px 18px max(25px,env(safe-area-inset-bottom,0px));max-height:82dvh;overflow-y:auto;transform:translateY(110%);transition:transform .2s ease;box-shadow:0 -8px 35px #0006}
+        #wsDaySheet.open{transform:translateY(0)}
+        .wsHandle{width:42px;height:4px;border-radius:4px;background:#64748b;margin:-7px auto 16px}
+        .wsSheetHead{display:flex;gap:10px;align-items:center}
+        .wsSheetHead h2{flex:1;margin:0;font-size:19px;line-height:1.3}
+        .wsIconButton{border:0;border-radius:50%;background:#2563eb;width:46px;height:46px;flex:none;font-size:26px;padding:0}
+        .wsClose{background:#334155;width:34px;height:34px;font-size:19px}
+        #wsDayInfo{color:#aab4c4;margin:12px 0 18px}
+        .wsShiftCard{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:13px 10px;margin:10px 0;border:1px solid #ffffff22;border-radius:12px;color:#fff;font-size:13px}
+        .wsShiftCard .wsShiftTime{flex:1;min-width:0;font-weight:700}
+        .wsShiftCard .wsShiftPay{font-weight:700;white-space:nowrap}
+        #wsEditor{position:fixed;inset:0;z-index:40;background:#111827;display:none;overflow-y:auto;padding: max(34px,env(safe-area-inset-top,0px)) 18px max(28px,env(safe-area-inset-bottom,0px))}
+        #wsEditor.open{display:block}
+        .wsEditorTop{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+        .wsEditorTop h2{flex:1;margin:0;font-size:18px}
+        #wsEditorForm{max-width:650px;margin:auto}
+        #wsEditorForm label{margin-top:20px}
+        #wsEditorForm select,#wsEditorForm input{min-height:49px}
+        #wsEditorForm #save{width:100%;margin-top:15px;min-height:48px}
+        #wsEditorForm #cancel{width:100%;margin-top:10px}
+        #wsEditorDelete{width:100%;margin-top:15px}
+        body.wsModalOpen{overflow:hidden}
+        .weekendToggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;cursor:pointer}
+        .weekendToggle span{flex:1}.weekendToggle strong{display:block;color:#f3f4f6;font-size:14px}.weekendToggle small{display:block;color:var(--muted);font-size:12px;line-height:1.5;margin-top:5px}
+        .weekendToggle input{appearance:none;flex:none;width:48px;height:28px;border-radius:20px;background:#475569;border:1px solid #64748b;position:relative;cursor:pointer;padding:0;transition:background .15s}
+        .weekendToggle input:before{content:"";position:absolute;width:20px;height:20px;top:3px;left:3px;background:white;border-radius:50%;transition:transform .15s}
+        .weekendToggle input:checked{background:#2563eb;border-color:#2563eb}.weekendToggle input:checked:before{transform:translateX(20px)}
+        .weekendToggle input:focus-visible{outline:2px solid white;outline-offset:3px}
+        .appCredits{margin:32px 0 12px;padding-top:17px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.7;text-align:center}
+    </style></head><body><div id="wsDialogBackdrop" role="presentation"><div id="wsDialog" role="dialog" aria-modal="true" aria-labelledby="wsDialogMessage"><p id="wsDialogMessage"></p><input id="wsDialogInput" class="hidden" autocomplete="off"><div id="wsDialogActions"><button id="wsDialogCancel">Скасувати</button><button id="wsDialogOk" class="primary">Підтвердити</button></div></div></div><div id="overlay"></div><aside id="menu">
+    <section class="menuPage active" id="menuHome"><div class="menuHeader"><h2>Меню</h2><button id="closeMenu">✕</button></div><button class="menuButton" data-page="templatesPage">Шаблони змін</button><button class="menuButton" data-page="salaryPage">Редактор зарплати</button><button class="menuButton" data-page="bonusPage">Коефіцієнт премії</button><button class="menuButton" data-page="nightPage">Нічні години</button><button class="menuButton" data-page="weekPage">Початок тижня</button><button class="menuButton" data-page="calendarViewPage">Вигляд календаря</button><button class="menuButton" data-page="statsPage">Повна статистика</button><button class="menuButton" data-page="dataPage">Дані та резервні копії</button><footer class="appCredits"><div>TimeSheet © 2026</div><div>Developed by Denys Matviichuk (Madeniska)</div></footer></section>
+    <section class="menuPage" id="templatesPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Шаблони змін</h2></div><div id="templateList"></div><hr class="separator"><h3 id="templateFormTitle">Новий шаблон</h3><label>Назва</label><input id="templateName" autocomplete="off" maxlength="40" placeholder="Наприклад, Підробіток"><div class="row"><div><label>Початок</label><input type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ГГ:ХХ" id="templateStart" value="08:00"></div><div><label>Завершення</label><input type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ГГ:ХХ" id="templateEnd" value="16:00"></div></div><label>Колір</label><input type="color" id="templateColor" value="#0d9488"><div class="row" style="margin-top:12px"><button class="primary" id="saveTemplate">Створити шаблон</button><button id="cancelTemplate" class="hidden">Скасувати</button></div><p class="muted">Видалення шаблону не видаляє записані зміни. Їхні назви та кольори залишаються.</p></section>
+    <section class="menuPage" id="salaryPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Зарплата</h2></div><label>Денна ставка нетто (zł/год)</label><input type="number" id="dayRate" min="0" step="0.01"><label>Нічна ставка нетто (zł/год)</label><input type="number" id="nightRate" min="0" step="0.01"><p><button class="primary" id="saveRates">Зберегти ставки</button></p></section>
+    <section class="menuPage" id="bonusPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Коефіцієнт премії</h2></div><label>Коефіцієнт нетто</label><input type="number" id="defaultFactor" min="0" max="1" step="0.0001"><p><button class="primary" id="saveFactor">Зберегти коефіцієнт</button></p><p class="muted">За замовчуванням 0,8068. Місяці з власним коефіцієнтом зберігають його.</p></section>
+    <section class="menuPage" id="nightPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Нічні години</h2></div><label>Початок</label><input type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ГГ:ХХ" id="nightStart"><label>Завершення</label><input type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ГГ:ХХ" id="nightEnd"><p><button class="primary" id="saveNight">Зберегти</button></p><hr class="separator"><label class="weekendToggle" for="weekendNight"><span><strong>Вихідні за нічним тарифом</strong><small>Усі години суботи та неділі оплачуються за нічною ставкою.</small></span><input type="checkbox" id="weekendNight" role="switch"></label></section>
+    <section class="menuPage" id="weekPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Початок тижня</h2></div><label>Перший день тижня</label><select id="weekStart"><option value="0">Неділя</option><option value="1">Понеділок</option><option value="2">Вівторок</option><option value="3">Середа</option><option value="4">Четвер</option><option value="5">П'ятниця</option><option value="6">Субота</option></select><p><button class="primary" id="saveWeek">Зберегти</button></p><p class="muted">Впливає на порядок днів та очищення тижня, але не на місячну зарплату.</p></section>
+    <section class="menuPage" id="calendarViewPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Вигляд календаря</h2></div><label for="calendarDisplay">Що показувати у дні зі змінами</label><select id="calendarDisplay"><option value="time">Час роботи (06:00–14:00)</option><option value="hours">Кількість годин (8 год.)</option><option value="name">Назва зміни (Ранкова)</option></select><p class="muted">Коли змін кілька, у режимі часу показується перша зміна і кількість решти. У режимі годин показується загальна тривалість усіх змін за день. Повний список доступний після натискання на дату.</p><p><button class="primary" id="saveCalendarDisplay">Зберегти вигляд</button></p></section>
+    <section class="menuPage" id="statsPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Повна статистика</h2></div><p id="statsMonth" class="muted"></p><div class="statsGrid"><div class="stat">Кількість змін<b id="count">0</b></div><div class="stat">Усього годин<b id="hours">0</b></div><div class="stat">Денні години<b id="fullDay">0</b></div><div class="stat">Нічні години<b id="fullNight">0</b></div><div class="stat">Денна зарплата<b id="dayPay">0 zł</b></div><div class="stat">Нічна зарплата<b id="nightPay">0 zł</b></div><div class="stat">Зарплата нетто<b id="workPay">0 zł</b></div><div class="stat">Премія брутто<b id="fullGross">0 zł</b></div><div class="stat">Коефіцієнт<b id="fullFactor">0</b></div><div class="stat">Премія нетто<b id="fullBonus">0 zł</b></div></div><h2>Разом: <span id="fullTotal">0 zł</span></h2><hr class="separator"><h3>Кількість змін за шаблонами</h3><div id="templateStatistics"></div><p class="muted">Враховуються також зміни за видаленими шаблонами.</p></section>
+    <section class="menuPage" id="dataPage"><div class="menuHeader"><button class="back">← Назад</button><h2>Дані та резервні копії</h2></div><h3>Резервні копії</h3><p class="muted">Усі місяці, премії, шаблони й налаштування.</p><button class="menuButton primary" id="jsonExport">Створити резервну копію JSON</button><button class="menuButton" id="jsonImport">Відновити з JSON</button><input class="fileInput" type="file" id="jsonFile" accept=".json,application/json"><hr class="separator"><h3>Імпорт та експорт</h3><p id="exportMonth" class="muted"></p><button class="menuButton primary" id="csvExport">Експортувати місяць у CSV</button><button class="menuButton" id="csvImport">Імпортувати CSV</button><input class="fileInput" type="file" id="csvFile" accept=".csv,text/csv,text/plain"><p class="muted">CSV містить зміни, назви, кольори, години та премію одного місяця.</p><hr class="separator"><div class="cleanHeader"><span class="cleanEyebrow">КЕРУВАННЯ ДАНИМИ</span><h3>Очищення даних</h3><p>Вибери, які записи потрібно прибрати з календаря.</p></div>
+        <div class="cleanNotice"><span class="cleanNoticeIcon" aria-hidden="true">!</span><div><strong>Перед видаленням</strong><p>Відновити записи можна лише з резервної копії JSON.</p></div></div>
+        <div class="cleanActions">
+            <div class="cleanCard"><div class="cleanCardTop"><span class="cleanIcon" aria-hidden="true">▦</span><div class="cleanCardText"><strong>Очистити тиждень</strong><p id="selectedWeekInfo" class="cleanDate"></p></div></div><button class="cleanDelete" id="deleteWeek" type="button">Видалити зміни за тиждень <span aria-hidden="true">↗</span></button></div>
+            <div class="cleanCard"><div class="cleanCardTop"><span class="cleanIcon" aria-hidden="true">▣</span><div class="cleanCardText"><strong>Очистити місяць</strong><p id="selectedMonthInfo" class="cleanDate"></p></div></div><button class="cleanDelete" id="deleteMonth" type="button">Видалити зміни та премію <span aria-hidden="true">↗</span></button></div>
+            <div class="cleanCard cleanCardCritical"><div class="cleanCardTop"><span class="cleanIcon cleanIconDanger" aria-hidden="true">✕</span><div class="cleanCardText"><strong>Видалити всі записи</strong><p class="cleanDate">Усі місяці, зміни та премії</p></div></div><button class="cleanDelete cleanDeleteCritical" id="deleteAll" type="button">Видалити всі дані <span aria-hidden="true">↗</span></button></div>
+        </div><p class="cleanFootnote">Шаблони змін і налаштування залишаться без змін.</p></section>
+</aside><main><header><button id="openMenu" aria-label="Відкрити меню">☰</button><h1>Календар зарплати</h1></header><section class="card"><div class="monthNav"><button id="prev">◀</button><h2 id="month"></h2><button id="next">▶</button></div></section><section class="compact"><div class="metric"><small>Денні</small><b id="compactDay">0 год</b></div><div class="metric"><small>Нічні</small><b id="compactNight">0 год</b></div><div class="metric"><small>Усього годин</small><b id="compactHours">0 год</b></div><div class="metric"><small>Зарплата</small><b id="compactPay">0 zł</b></div><div class="metric"><small>Премія</small><b id="compactBonus">0 zł</b></div><div class="metric"><small>Разом</small><b id="compactTotal">0 zł</b></div></section><section class="card"><div class="week" id="weekHeader"></div><div class="calendar" id="calendar"></div></section><div id="wsSheetBackdrop"></div><section id="wsDaySheet" role="dialog" aria-label="Зміни за день"><div class="wsHandle"></div><div class="wsSheetHead"><h2 id="dateTitle"></h2><button id="wsSheetAdd" class="wsIconButton" aria-label="Додати зміну">+</button><button id="wsSheetClose" class="wsIconButton wsClose" aria-label="Закрити">×</button></div><p id="wsDayInfo"></p><div id="entries"></div><p id="dayTotal" class="muted"></p></section>
+    <section id="wsEditor" role="dialog" aria-label="Редактор зміни"><div id="wsEditorForm"><div class="wsEditorTop"><button id="wsEditorBack" type="button">←</button><h2 id="formTitle">Додати зміну</h2></div><label>Шаблон зміни</label><select id="type"></select><div class="row"><div><label>Початок</label><input type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ГГ:ХХ" id="start"></div><div><label>Завершення</label><input type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ГГ:ХХ" id="end"></div></div><p id="preview" class="muted"></p><div class="row"><button id="save" class="primary">Додати зміну</button><button id="cancel" class="hidden">Скасувати</button></div><button id="wsEditorDelete" class="danger hidden" type="button">Видалити зміну</button></div></section><section class="card"><h2>Премія за місяць</h2><label>Премія брутто (zł)</label><input type="number" id="gross" min="0" step="0.01"><p><button class="primary" id="saveBonus">Зберегти премію</button></p></section></main>
+<script>
+    function workshitDialog(message, mode='confirm', initial='') {
+      return new Promise(resolve => {
+        const backdrop=document.getElementById('wsDialogBackdrop');
+        const field=document.getElementById('wsDialogInput');
+        const cancel=document.getElementById('wsDialogCancel');
+        const ok=document.getElementById('wsDialogOk');
+        document.getElementById('wsDialogMessage').textContent=String(message);
+        field.classList.toggle('hidden',mode!=='input');
+        field.value=initial;
+        cancel.classList.toggle('hidden',mode==='notice');
+        ok.textContent=mode==='notice'?'Зрозуміло':'Підтвердити';
+        backdrop.classList.add('visible');
+        const done=value=>{
+          backdrop.classList.remove('visible');
+          ok.onclick=null;cancel.onclick=null;field.onkeydown=null;
+          resolve(value);
+        };
+        ok.onclick=()=>done(mode==='input'?field.value:true);
+        cancel.onclick=()=>done(mode==='input'?null:false);
+        field.onkeydown=e=>{if(e.key==='Enter')done(field.value)};
+        if(mode==='input')field.focus();
+      });
+    }
+    function chooseImportMode(title) {
+      return new Promise(resolve => {
+        const backdrop=document.getElementById('wsDialogBackdrop');
+        const message=document.getElementById('wsDialogMessage');
+        const field=document.getElementById('wsDialogInput');
+        const actions=document.getElementById('wsDialogActions');
+        const cancel=document.getElementById('wsDialogCancel');
+        const ok=document.getElementById('wsDialogOk');
+        message.textContent=title+'\n\nОб’єднати: додати записи з файлу до наявних.\nЗамінити: замінити відповідні дані записами з файлу.';
+        field.classList.add('hidden');
+        cancel.classList.add('hidden');
+        ok.classList.add('hidden');
+        const merge=document.createElement('button');
+        merge.textContent='Об’єднати';
+        merge.className='primary';
+        const replace=document.createElement('button');
+        replace.textContent='Замінити';
+        replace.className='danger';
+        const abort=document.createElement('button');
+        abort.textContent='Скасувати';
+        actions.append(merge,replace,abort);
+        backdrop.classList.add('visible');
+        function finish(value) {
+          backdrop.classList.remove('visible');
+          merge.remove();replace.remove();abort.remove();
+          cancel.classList.remove('hidden');
+          ok.classList.remove('hidden');
+          resolve(value);
+        }
+        merge.onclick=()=>finish('1');
+        replace.onclick=()=>finish('2');
+        abort.onclick=()=>finish(null);
+      });
+    }
+    const askConfirm=message=>workshitDialog(message,'confirm');
+    const askInput=(message,initial='')=>workshitDialog(message,'input',initial);
+    const notify=message=>workshitDialog(message,'notice');
+</script>
+<script>
+    'use strict';
+    const $=id=>document.getElementById(id), clone=x=>JSON.parse(JSON.stringify(x));
+    const SHIFT_KEY='salaryCalendarMultiShiftsV1',BONUS_KEY='salaryCalendarBonusesV2',SETTINGS_KEY='salaryCalendarSettingsV1',TEMPLATE_KEY='salaryCalendarCustomTemplatesV1';
+    const WEEK_NAMES=['Неділя','Понеділок','Вівторок','Середа','Четвер',"П'ятниця",'Субота'],WEEK_SHORT=['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const BASE=[{id:'morning',name:'Ранкова',start:'06:00',end:'14:00',color:'#2563eb'},{id:'evening',name:'Денна',start:'14:00',end:'22:00',color:'#c2410c'},{id:'night',name:'Нічна',start:'22:00',end:'06:00',color:'#7e22ce'}];
+    const DEFAULT={dayRate:25.36,nightRate:26.17,nightStart:'20:00',nightEnd:'06:00',defaultFactor:0.8068,weekStart:0,calendarDisplay:'time',weekendNight:false};
+
+    function read(k, fall) {
+        try {
+            const value = window.AndroidStorage
+                ? AndroidStorage.loadData(k)
+                : localStorage.getItem(k);
+
+            return value === null ? fall : JSON.parse(value);
+        } catch (error) {
+            console.error("Помилка читання:", error);
+            return fall;
+        }
+    }
+
+    const timeOK=x=>typeof x==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(x),colorOK=x=>typeof x==='string'&&/^#[0-9a-fA-F]{6}$/.test(x),numOK=(x,a=0,b=Infinity)=>typeof x==='number'&&Number.isFinite(x)&&x>=a&&x<=b;
+    const makeId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,12);
+    function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+    function dateFromKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d,12)}
+    function dateOK(k){if(!/^\d{4}-\d{2}-\d{2}$/.test(k))return false;const [y,m,d]=k.split('-').map(Number),v=new Date(0);v.setFullYear(y,m-1,d);return v.getFullYear()===y&&v.getMonth()===m-1&&v.getDate()===d}
+    function addDays(k,n){const d=dateFromKey(k);d.setDate(d.getDate()+n);return dateKey(d)}
+    function normalizeSettings(raw){const s=clone(DEFAULT);if(!raw||typeof raw!=='object')return s;for(const k of ['dayRate','nightRate'])if(numOK(raw[k]))s[k]=raw[k];if(timeOK(raw.nightStart)&&timeOK(raw.nightEnd)&&raw.nightStart!==raw.nightEnd){s.nightStart=raw.nightStart;s.nightEnd=raw.nightEnd}if(numOK(raw.defaultFactor,0,1))s.defaultFactor=raw.defaultFactor;if(Number.isInteger(raw.weekStart)&&raw.weekStart>=0&&raw.weekStart<=6)s.weekStart=raw.weekStart;if(['time','hours','name'].includes(raw.calendarDisplay))s.calendarDisplay=raw.calendarDisplay;if(typeof raw.weekendNight==='boolean')s.weekendNight=raw.weekendNight;return s}
+    function normalizeTemplate(t){if(!t||typeof t!=='object')return null;const id=String(t.id||'').trim(),name=String(t.name||'').trim();return id&&name&&name.length<=40&&timeOK(t.start)&&timeOK(t.end)&&t.start!==t.end&&colorOK(t.color)?{id,name,start:t.start,end:t.end,color:t.color.toLowerCase()}:null}
+    function normalizeTemplates(raw){const found=new Map();if(Array.isArray(raw))for(const x of raw){const t=normalizeTemplate(x);if(t&&!found.has(t.id))found.set(t.id,t)}return [...BASE.map(b=>found.get(b.id)||clone(b)),...[...found.values()].filter(t=>!BASE.some(b=>b.id===t.id))]}
+    function migratedTemplates(old){return BASE.map(b=>{const t=old?.templates?.[b.id];return t&&timeOK(t.start)&&timeOK(t.end)&&t.start!==t.end?{...b,start:t.start,end:t.end}:clone(b)})}
+    const oldSettings=read(SETTINGS_KEY,{});let settings=normalizeSettings(oldSettings);const savedTemplates=read(TEMPLATE_KEY,null);let templates=normalizeTemplates(savedTemplates===null?migratedTemplates(oldSettings):savedTemplates);
+    const templateById=id=>templates.find(t=>t.id===id)||null;
+    function normalizeShift(raw,known=templates){let s=raw;if(typeof s==='string'){const t=known.find(x=>x.id===s)||BASE.find(x=>x.id===s);if(!t)return null;s={type:t.id,name:t.name,color:t.color,start:t.start,end:t.end}}if(!s||typeof s!=='object')return null;const type=String(s.type||'').trim(),t=known.find(x=>x.id===type)||BASE.find(x=>x.id===type),name=String(s.name||t?.name||'').trim(),color=colorOK(s.color)?s.color.toLowerCase():t?.color;return type&&name&&colorOK(color)&&timeOK(s.start)&&timeOK(s.end)&&s.start!==s.end?{id:String(s.id||makeId()),type,name,color,start:s.start,end:s.end}:null}
+    function normalizeShifts(raw,known=templates){const out={};if(!raw||typeof raw!=='object'||Array.isArray(raw))return out;for(const [date,value] of Object.entries(raw)){if(!dateOK(date))continue;const source=Array.isArray(value)?value:[value],items=source.map(x=>normalizeShift(x,known)).filter(Boolean);if(items.length)out[date]=items}return out}
+    function normalizeBonuses(raw){const out={};if(!raw||typeof raw!=='object'||Array.isArray(raw))return out;for(const [m,b] of Object.entries(raw)){if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||!b||typeof b!=='object')continue;const gross=Number(b.gross);if(!numOK(gross))continue;out[m]={gross};if(b.factor!==undefined&&b.factor!==null&&numOK(Number(b.factor),0,1))out[m].factor=Number(b.factor)}return out}
+    const savedShifts=read(SHIFT_KEY,null);let shifts=normalizeShifts(savedShifts===null?(read('salaryCalendarShiftsV3',null)||read('salaryCalendarTemplatesV2',{})):savedShifts),bonuses=normalizeBonuses(read(BONUS_KEY,{}));
+    let view=new Date();view.setDate(1);let selected=dateKey(new Date()),editing=null,editingTemplate=null;
+
+    function saveValue(key, value) {
+        const json = JSON.stringify(value);
+
+        if (window.AndroidStorage) {
+            window.AndroidStorage.saveData(key, json);
+        } else {
+            localStorage.setItem(key, json);
+        }
+    }
+
+    const saveData = () => saveValue(SHIFT_KEY, shifts);
+    const saveBonuses = () => saveValue(BONUS_KEY, bonuses);
+    const saveSettings = () => saveValue(SETTINGS_KEY, settings);
+    const saveTemplates = () => saveValue(TEMPLATE_KEY, templates);
+    const monthKey=()=>view.getFullYear()+'-'+String(view.getMonth()+1).padStart(2,'0'),fmt=n=>n.toLocaleString('uk-UA',{maximumFractionDigits:2}),money=n=>n.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})+' zł',shortMoney=n=>n.toLocaleString('pl-PL',{maximumFractionDigits:2})+' zł';
+    const mins=t=>{const [h,m]=t.split(':').map(Number);return h*60+m};
+    function interval(s){const a=mins(s.start);let b=mins(s.end);if(b<=a)b+=1440;return[a,b]}
+    function isNight(m){const t=((m%1440)+1440)%1440,a=mins(settings.nightStart),b=mins(settings.nightEnd);return a<b?t>=a&&t<b:t>=a||t<b}
+    function calc(s,date=selected){const [a,b]=interval(s);let n=0;const base=dateFromKey(date).getDay();for(let m=a;m<b;m++){const day=(base+Math.floor(m/1440))%7;if((settings.weekendNight&&(day===0||day===6))||isNight(m))n++}return{day:(b-a-n)/60,night:n/60,total:(b-a)/60}}
+    const pay=(s,date=selected)=>{const h=calc(s,date);return h.day*settings.dayRate+h.night*settings.nightRate},list=d=>shifts[d]||[];
+    function overlaps(a,b){const [x,y]=interval(a),[u,v]=interval(b);return[-1440,0,1440].some(o=>x<v+o&&u+o<y)}
+    function currentBonus(){const b=bonuses[monthKey()];return{gross:b?.gross??0,factor:b?.factor??settings.defaultFactor}}
+    function summary(){let count=0,day=0,night=0;const by=new Map();for(const [d,items] of Object.entries(shifts)){if(!d.startsWith(monthKey()))continue;for(const s of items){const h=calc(s,d);count++;day+=h.day;night+=h.night;const k=s.type+'|'+s.name+'|'+s.color;if(!by.has(k))by.set(k,{name:s.name,color:s.color,count:0});by.get(k).count++}}const dayPay=day*settings.dayRate,nightPay=night*settings.nightRate,work=dayPay+nightPay,b=currentBonus(),bonusNet=b.gross*b.factor;return{count,day,night,dayPay,nightPay,work,gross:b.gross,factor:b.factor,bonusNet,total:work+bonusNet,by:[...by.values()]}}
+    function node(tag,text,cls=''){const e=document.createElement(tag);e.textContent=text;if(cls)e.className=cls;return e}
+    function dot(color){const d=node('span','','dot');d.style.background=color;return d}
+    function badge(s){const b=node('div',s.name+' '+s.start+'–'+s.end,'badge');b.style.background=s.color;return b}
+    function preview(){const s={start:$('start').value,end:$('end').value};if(!timeOK(s.start)||!timeOK(s.end)||s.start===s.end){$('preview').textContent='Перевір час зміни.';return}const h=calc(s);$('preview').textContent=`${fmt(h.total)} год. | Денні: ${fmt(h.day)} | Нічні: ${fmt(h.night)} | ${money(pay(s))}`}
+    function renderTypes(){const el=$('type'),prev=el.value;el.replaceChildren();for(const t of templates){const opt=node('option',t.name);opt.value=t.id;el.append(opt)}if(templates.some(t=>t.id===prev))el.value=prev}
+    function resetForm(){editing=null;$('formTitle').textContent='Додати зміну';$('save').textContent='Додати зміну';$('cancel').classList.add('hidden');renderTypes();const last=read('workshitLastTemplateV1',null);const t=templateById(last)||templates[0];if(t){$('type').value=t.id;$('start').value=t.start;$('end').value=t.end}preview()}
+    function renderWeekHeader(){const el=$('weekHeader');el.replaceChildren();for(let i=0;i<7;i++)el.append(node('div',WEEK_SHORT[(settings.weekStart+i)%7]))}
+    function renderCalendar(){
+      const el=$('calendar');el.replaceChildren();
+      $('month').textContent=view.toLocaleDateString('uk-UA',{month:'long',year:'numeric'});
+      const y=view.getFullYear(),m=view.getMonth();
+      const offset=(new Date(y,m,1).getDay()-settings.weekStart+7)%7;
+      const days=new Date(y,m+1,0).getDate();
+      for(let i=0;i<offset;i++)el.append(node('div','','day blank'));
+      for(let d=1;d<=days;d++){
+        const date=dateKey(new Date(y,m,d)),items=list(date),cell=node('div','','day');
+        if(date===selected)cell.classList.add('selected');
+        if(date===dateKey(new Date()))cell.classList.add('today');
+        cell.append(node('div',String(d),'num'));
+        if(items.length){
+          const mode=settings.calendarDisplay||'time';
+          const visibleCount=items.length<=3?items.length:2;
+          for(const shift of items.slice(0,visibleCount)){
+            const labelText=mode==='hours'
+              ?fmt(calc(shift).total)+' год.'
+              :mode==='name'?shift.name:shift.start+'–'+shift.end;
+            const label=node('div',labelText,'badge calendarShiftLabel');
+            label.style.background=shift.color;
+            cell.append(label);
+          }
+          if(items.length>3){
+            const hidden=items.length-2;
+            cell.append(node('div','+'+hidden+' '+(hidden===1?'зміна':hidden>=2&&hidden<=4?'зміни':'змін'),'moreShifts'));
+          }
+        }
+        cell.onclick=()=>{selected=date;resetForm();renderAll();openDaySheet()};
+        el.append(cell);
+      }
+    }
+    function renderEntries(){
+     const box=$('entries');box.replaceChildren();
+     $('dateTitle').textContent=dateFromKey(selected).toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+     const items=list(selected),hours=items.reduce((a,s)=>a+calc(s).total,0),earned=items.reduce((a,s)=>a+pay(s),0);
+     $('wsDayInfo').textContent=items.length+' змін · '+fmt(hours)+' год · '+money(earned);
+     $('dayTotal').textContent=items.length?'Натисни на зміну, щоб редагувати.':'Записів на цей день немає.';
+     for(const s of items){
+      const b=node('button','','wsShiftCard');b.type='button';b.style.background=s.color;
+      const time=node('span',s.start+'–'+s.end+' ('+fmt(calc(s).total)+' год)','wsShiftTime');
+      const price=node('span',money(pay(s)),'wsShiftPay');b.append(time,price);
+      b.onclick=()=>openShiftEditor(s);box.append(b);
+     }
+     if(items.some((a,i)=>items.some((b,j)=>j>i&&overlaps(a,b))))box.append(node('p','Увага: зміни перекриваються, години можуть рахуватися двічі.','notice'));
+    }
+    function renderStats(){const s=summary();for(const [id,v] of Object.entries({compactDay:fmt(s.day)+' год',compactNight:fmt(s.night)+' год',compactHours:fmt(s.day+s.night)+' год',compactPay:shortMoney(s.work),compactBonus:shortMoney(s.bonusNet),compactTotal:shortMoney(s.total),count:s.count,hours:fmt(s.day+s.night),fullDay:fmt(s.day),fullNight:fmt(s.night),dayPay:money(s.dayPay),nightPay:money(s.nightPay),workPay:money(s.work),fullGross:money(s.gross),fullFactor:fmt(s.factor),fullBonus:money(s.bonusNet),fullTotal:money(s.total)}))$(id).textContent=v;$('statsMonth').textContent=$('month').textContent;$('exportMonth').textContent=$('month').textContent;const box=$('templateStatistics');box.replaceChildren();if(!s.by.length)box.append(node('p','Змін за цей місяць немає.','muted'));for(const t of s.by.sort((a,b)=>b.count-a.count)){const row=node('div','','templateStat'),name=node('div','','statName');name.append(dot(t.color),node('span',t.name));row.append(name,node('b',String(t.count)));box.append(row)}if(s.by.length){const row=node('div','','templateStat');row.append(node('strong','Усього'),node('b',String(s.count)));box.append(row)}}
+    function weekRange(k){const back=(dateFromKey(k).getDay()-settings.weekStart+7)%7,start=addDays(k,-back);return{start,end:addDays(start,6)}}
+    const displayDate=k=>dateFromKey(k).toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'numeric'});
+    function renderDeleteInfo(){const r=weekRange(selected);$('selectedWeekInfo').textContent=displayDate(r.start)+' – '+displayDate(r.end);$('selectedMonthInfo').textContent=$('month').textContent}
+    function renderAll(){renderWeekHeader();renderCalendar();renderEntries();renderStats();$('gross').value=currentBonus().gross;renderDeleteInfo()}
+    function openDaySheet(){
+     $('wsSheetBackdrop').classList.add('open');$('wsDaySheet').classList.add('open');document.body.classList.add('wsModalOpen');
+    }
+    function closeDaySheet(){
+     $('wsSheetBackdrop').classList.remove('open');$('wsDaySheet').classList.remove('open');document.body.classList.remove('wsModalOpen');
+    }
+    function openShiftEditor(s=null){
+     if(s){
+      editing=s.id;renderTypes();
+      if(!templateById(s.type)){const o=node('option',s.name+' (видалений шаблон)');o.value=s.type;$('type').append(o)}
+      $('type').value=s.type;$('start').value=s.start;$('end').value=s.end;
+      $('formTitle').textContent='Редагувати зміну';$('save').textContent='Зберегти зміни';
+      $('wsEditorDelete').classList.remove('hidden');
+     }else{resetForm();$('wsEditorDelete').classList.add('hidden')}
+     preview();$('wsEditor').classList.add('open');document.body.classList.add('wsModalOpen');
+    }
+    function closeShiftEditor(){
+     $('wsEditor').classList.remove('open');resetForm();$('wsEditorDelete').classList.add('hidden');
+     if(!$('wsDaySheet').classList.contains('open'))document.body.classList.remove('wsModalOpen');
+    }
+    $('wsSheetBackdrop').onclick=closeDaySheet;
+    $('wsSheetClose').onclick=closeDaySheet;
+    $('wsSheetAdd').onclick=()=>openShiftEditor();
+    $('wsEditorBack').onclick=closeShiftEditor;
+    $('wsEditorDelete').onclick=async()=>{
+     if(!editing||!await askConfirm('Видалити цю зміну?'))return;
+     const rest=list(selected).filter(x=>x.id!==editing);
+     if(rest.length)shifts[selected]=rest;else delete shifts[selected];
+     saveData();closeShiftEditor();renderAll();
+    };
+    function resetTemplateForm(){editingTemplate=null;$('templateFormTitle').textContent='Новий шаблон';$('templateName').value='';$('templateStart').value='08:00';$('templateEnd').value='16:00';$('templateColor').value='#0d9488';$('saveTemplate').textContent='Створити шаблон';$('cancelTemplate').classList.add('hidden')}
+    function renderTemplateList(){const box=$('templateList');box.replaceChildren();for(const t of templates){const wrap=node('div','','template'),top=node('div','','templateTop');top.append(dot(t.color),node('strong',t.name));const actions=node('div','','row'),edit=node('button','Редагувати');edit.onclick=()=>{editingTemplate=t.id;$('templateFormTitle').textContent='Редагувати шаблон';$('templateName').value=t.name;$('templateStart').value=t.start;$('templateEnd').value=t.end;$('templateColor').value=t.color;$('saveTemplate').textContent='Зберегти шаблон';$('cancelTemplate').classList.remove('hidden');$('templateName').focus()};actions.append(edit);if(!BASE.some(b=>b.id===t.id)){const del=node('button','Видалити','danger');del.onclick=async()=>{if(!await askConfirm('Видалити шаблон «'+t.name+'»? Записані зміни залишаться.'))return;templates=templates.filter(x=>x.id!==t.id);saveTemplates();if(editingTemplate===t.id)resetTemplateForm();renderTemplateList();resetForm();renderAll()};actions.append(del)}wrap.append(top,node('p',t.start+'–'+t.end,'muted'),actions);box.append(wrap)}}
+    function loadSettingsUI(){for(const k of ['dayRate','nightRate','nightStart','nightEnd','defaultFactor','weekStart','calendarDisplay'])$(k).value=settings[k];$('weekendNight').checked=settings.weekendNight;renderTemplateList()}
+    function openPage(id){document.querySelectorAll('.menuPage').forEach(p=>p.classList.toggle('active',p.id===id));if(id==='dataPage')renderDeleteInfo()}
+    const closeMenu=()=>document.body.classList.remove('menuOpen');$('openMenu').onclick=()=>{openPage('menuHome');document.body.classList.add('menuOpen')};$('closeMenu').onclick=closeMenu;$('overlay').onclick=closeMenu;document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>openPage(b.dataset.page));document.querySelectorAll('.back').forEach(b=>b.onclick=()=>openPage('menuHome'));
+    function changeMonth(n){view=new Date(view.getFullYear(),view.getMonth()+n,1);selected=dateKey(view);resetForm();renderAll()}$('prev').onclick=()=>changeMonth(-1);$('next').onclick=()=>changeMonth(1);
+    $('saveTemplate').onclick=()=>{const name=$('templateName').value.trim(),start=$('templateStart').value,end=$('templateEnd').value,color=$('templateColor').value;if(!name||name.length>40||!timeOK(start)||!timeOK(end)||start===end||!colorOK(color)){notify('Перевір назву, час і колір.');return}if(editingTemplate){const t=templateById(editingTemplate);if(!t)return notify('Шаблон не знайдено.');Object.assign(t,{name,start,end,color})}else templates.push({id:'custom_'+makeId(),name,start,end,color});saveTemplates();resetTemplateForm();renderTemplateList();resetForm();renderAll();notify('Шаблон збережено.')};$('cancelTemplate').onclick=resetTemplateForm;
+    $('saveRates').onclick=()=>{const day=Number($('dayRate').value),night=Number($('nightRate').value);if(!$('dayRate').value||!$('nightRate').value||!numOK(day)||!numOK(night))return notify('Перевір ставки.');settings.dayRate=day;settings.nightRate=night;saveSettings();renderAll();preview();notify('Ставки збережено.')};
+    $('weekendNight').onchange=()=>{settings.weekendNight=$('weekendNight').checked;saveSettings();renderAll();preview()};
+    $('saveNight').onclick=()=>{const a=$('nightStart').value,b=$('nightEnd').value;if(!timeOK(a)||!timeOK(b)||a===b)return notify('Перевір нічний період.');settings.nightStart=a;settings.nightEnd=b;saveSettings();renderAll();preview();notify('Нічний період збережено.')};
+    $('saveFactor').onclick=()=>{const v=Number($('defaultFactor').value);if(!$('defaultFactor').value||!numOK(v,0,1))return notify('Коефіцієнт має бути від 0 до 1.');settings.defaultFactor=v;saveSettings();renderStats();notify('Коефіцієнт збережено.')};
+    $('saveCalendarDisplay').onclick=()=>{settings.calendarDisplay=$('calendarDisplay').value;saveSettings();renderCalendar();notify('Вигляд календаря збережено.')};
+    $('saveWeek').onclick=()=>{settings.weekStart=Number($('weekStart').value);saveSettings();renderAll();notify('Тиждень починається з '+WEEK_NAMES[settings.weekStart].toLowerCase()+'.')};
+    $('type').onchange=()=>{const t=templateById($('type').value);if(t){$('start').value=t.start;$('end').value=t.end}preview()};$('start').oninput=preview;$('end').oninput=preview;
+    $('save').onclick=async()=>{const type=$('type').value,existing=editing?list(selected).find(x=>x.id===editing):null,t=templateById(type);if(!t&&!existing)return notify('Шаблон не знайдено.');const same=existing&&existing.type===type,s=normalizeShift({id:editing||makeId(),type,name:same?existing.name:t.name,color:same?existing.color:t.color,start:$('start').value,end:$('end').value});if(!s)return notify('Перевір тип і час зміни.');const items=[...list(selected)],index=items.findIndex(x=>x.id===editing);if(index>=0)items[index]=s;else items.push(s);items.sort((a,b)=>a.start.localeCompare(b.start));if(items.some((a,i)=>items.some((b,j)=>j>i&&overlaps(a,b)))&&!await askConfirm('Зміни перекриваються. Зберегти?'))return;shifts[selected]=items;saveData();saveValue('workshitLastTemplateV1',type);closeShiftEditor();renderAll()};$('cancel').onclick=closeShiftEditor;
+    $('saveBonus').onclick=()=>{const raw=$('gross').value,gross=Number(raw);if(raw===''||!numOK(gross))return notify('Перевір суму премії.');bonuses[monthKey()]={...(bonuses[monthKey()]||{}),gross};saveBonuses();renderStats();notify('Премію збережено.')};
+    $('deleteWeek').onclick=async()=>{const r=weekRange(selected);if(!await askConfirm('Видалити всі зміни за '+displayDate(r.start)+' – '+displayDate(r.end)+'? Премії залишаться.'))return;let n=0;for(const d of Object.keys(shifts))if(d>=r.start&&d<=r.end){n+=shifts[d].length;delete shifts[d]}saveData();resetForm();renderAll();notify('Видалено змін: '+n)};
+    $('deleteMonth').onclick=async()=>{const m=monthKey();if(!await askConfirm('Видалити всі зміни та премію за '+$('month').textContent+'?'))return;let n=0;for(const d of Object.keys(shifts))if(d.startsWith(m)){n+=shifts[d].length;delete shifts[d]}delete bonuses[m];saveData();saveBonuses();resetForm();renderAll();notify('Місяць очищено. Видалено змін: '+n)};
+    $('deleteAll').onclick=async()=>{if(!await askConfirm('Видалити ВСІ зміни та премії за всі місяці?'))return;if(!await askConfirm('Останнє підтвердження: без резервної копії відновити всі видалені зміни та премії буде неможливо. Продовжити?'))return;shifts={};bonuses={};saveData();saveBonuses();resetForm();renderAll();notify('Усі зміни та премії видалено.')};
+    function download(name,content,type){
+      if(window.AndroidFiles){
+        const bytes=new TextEncoder().encode(content);
+        let binary='';
+        for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+        AndroidFiles.saveFile(name,type,btoa(binary));
+        return;
+      }
+      const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');
+      a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),3000);
+    }
+    function mergeShifts(target,source){let n=0;for(const [d,items] of Object.entries(source)){const arr=target[d]||[];for(const s of items){if(!arr.some(x=>x.type===s.type&&x.name===s.name&&x.color===s.color&&x.start===s.start&&x.end===s.end)){arr.push({...s,id:makeId()});n++}}if(arr.length){arr.sort((a,b)=>a.start.localeCompare(b.start));target[d]=arr}}return n}
+    async function importMode(title){return await chooseImportMode(title)}
+    $('jsonExport').onclick=()=>download('salary-backup-'+dateKey(new Date())+'.json',JSON.stringify({app:'salary-calendar',version:2,exportedAt:new Date().toISOString(),shifts,bonuses,settings,templates},null,2),'application/json');$('jsonImport').onclick=()=>$('jsonFile').click();
+    $('jsonFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.app!=='salary-calendar'||![1,2].includes(data.version)||!data.shifts||!data.bonuses||!data.settings||typeof data.shifts!=='object'||Array.isArray(data.shifts)||typeof data.bonuses!=='object'||Array.isArray(data.bonuses)||typeof data.settings!=='object'||Array.isArray(data.settings))throw Error('Невідповідний формат JSON.');if(data.version===2&&!Array.isArray(data.templates))throw Error('Немає шаблонів.');const its=normalizeTemplates(data.version===2?data.templates:migratedTemplates(data.settings)),iss=normalizeShifts(data.shifts,its),ibs=normalizeBonuses(data.bonuses),iset=normalizeSettings(data.settings);if(Object.keys(iss).length!==Object.keys(data.shifts).length||Object.keys(ibs).length!==Object.keys(data.bonuses).length)throw Error('Пошкоджені записи.');for(const [d,v] of Object.entries(data.shifts)){if((Array.isArray(v)?v:[v]).length!==iss[d]?.length)throw Error('Пошкоджені зміни за '+d)}const mode=await importMode('Імпорт JSON');if(!mode)return;if(mode==='2'){if(!await askConfirm('Замінити всі зміни, премії, шаблони й налаштування?'))return;shifts=iss;bonuses=ibs;settings=iset;templates=its}else{const merged=clone(shifts);mergeShifts(merged,iss);shifts=merged;bonuses={...bonuses,...ibs};const ids=new Set(templates.map(t=>t.id));for(const t of its)if(!ids.has(t.id)){templates.push(t);ids.add(t.id)}}saveData();saveBonuses();saveSettings();saveTemplates();loadSettingsUI();resetTemplateForm();resetForm();renderAll();notify('JSON імпортовано.')}catch(err){notify('Помилка імпорту: '+err.message)}finally{e.target.value=''}};
+    const csvEscape=x=>'"'+String(x??'').replaceAll('"','""')+'"';
+    $('csvExport').onclick=()=>{const rows=[['Дата','№','Тип','Початок','Кінець','Денні','Нічні','Усього','Нетто','ID шаблону','Колір']];for(const d of Object.keys(shifts).filter(x=>x.startsWith(monthKey())).sort())list(d).forEach((s,i)=>{const h=calc(s,d);rows.push([d,i+1,s.name,s.start,s.end,h.day.toFixed(2),h.night.toFixed(2),h.total.toFixed(2),pay(s,d).toFixed(2),s.type,s.color])});const b=currentBonus();rows.push([],['Місяць',monthKey()],['Премія брутто',b.gross],['Коефіцієнт',b.factor],['Премія нетто',(b.gross*b.factor).toFixed(2)]);download('zarplata-'+monthKey()+'.csv','\uFEFF'+rows.map(r=>r.map(csvEscape).join(';')).join('\r\n'),'text/csv;charset=utf-8')};
+    function parseCSV(text){text=text.replace(/^\uFEFF/,'');const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const ch=text[i];if(quoted){if(ch==='"'){if(text[i+1]==='"'){field+='"';i++}else quoted=false}else field+=ch}else if(ch==='"'&&field==='')quoted=true;else if(ch===';'){row.push(field);field=''}else if(ch==='\r'||ch==='\n'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(field);if(row.some(x=>x.trim()!==''))rows.push(row);row=[];field=''}else field+=ch}if(quoted)throw Error('Незакриті лапки.');row.push(field);if(row.some(x=>x.trim()!==''))rows.push(row);return rows}
+    const decimal=x=>Number(String(x??'').trim().replace(',','.'));const oldType=x=>({'ранкова':'morning','денна':'evening','нічна':'night','morning':'morning','evening':'evening','night':'night'})[String(x||'').trim().toLowerCase()]||null;
+    $('csvImport').onclick=()=>$('csvFile').click();
+    $('csvFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const rows=parseCSV(await file.text());if(!rows.length||rows[0][0]?.trim()!=='Дата'||rows[0][2]?.trim()!=='Тип')throw Error('Це не CSV календаря.');const imported={},months=new Set();let gross=null,factor=null,declared=null,hasBonus=false;for(let i=1;i<rows.length;i++){const r=rows[i],first=String(r[0]??'').trim();if(first==='Місяць'){declared=String(r[1]??'').trim();if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(declared))throw Error('Некоректний місяць.');continue}if(first==='Премія брутто'){gross=decimal(r[1]);if(!numOK(gross))throw Error('Некоректна премія.');hasBonus=true;continue}if(first==='Коефіцієнт'){factor=decimal(r[1]);if(!numOK(factor,0,1))throw Error('Некоректний коефіцієнт.');continue}if(first==='Премія нетто')continue;if(!dateOK(first))throw Error('Некоректна дата в рядку '+(i+1));const name=String(r[2]??'').trim(),start=String(r[3]??'').trim(),end=String(r[4]??'').trim(),modern=r.length>=11&&String(r[9]??'').trim()!=='';let type,color;if(modern){type=String(r[9]).trim();color=String(r[10]??'').trim()}else{type=oldType(name);if(!type)throw Error('Невідомий тип у рядку '+(i+1));color=templateById(type)?.color||BASE.find(t=>t.id===type)?.color}const s=normalizeShift({id:makeId(),type,name,color,start,end});if(!s)throw Error('Некоректна зміна в рядку '+(i+1));months.add(first.slice(0,7));(imported[first]??=[]).push(s)}if(months.size>1)throw Error('CSV містить різні місяці.');const rowMonth=[...months][0]||null;if(declared&&rowMonth&&declared!==rowMonth)throw Error('Місяць не збігається з датами.');const target=declared||rowMonth||file.name.match(/(\d{4}-(?:0[1-9]|1[0-2]))/)?.[1];if(!target)throw Error('Не вдалося визначити місяць.');const mode=await importMode('Імпорт CSV за '+target);if(!mode)return;if(mode==='2'&&!await askConfirm('Замінити зміни та премію за '+target+'?'))return;if(mode==='2')for(const d of Object.keys(shifts))if(d.startsWith(target))delete shifts[d];const added=mergeShifts(shifts,imported);if(hasBonus){if(mode==='2'||!Object.prototype.hasOwnProperty.call(bonuses,target)){bonuses[target]={gross};if(factor!==null)bonuses[target].factor=factor}}else if(mode==='2')delete bonuses[target];saveData();saveBonuses();const [y,m]=target.split('-').map(Number);view=new Date(y,m-1,1);selected=dateKey(view);resetForm();renderAll();notify('CSV імпортовано. Додано змін: '+added)}catch(err){notify('Помилка CSV: '+err.message)}finally{e.target.value=''}};
+    loadSettingsUI();resetTemplateForm();resetForm();renderAll();
+</script>
+<script>
+    (function () {
+      const ids = ['templateStart','templateEnd','nightStart','nightEnd','start','end'];
+      function normalizeTime(value) {
+        const v = value.trim().replace(/[.,]/g, ':');
+        const m = v.match(/^(\d{1,2}):(\d{1,2})$/);
+        if (!m) return value.trim();
+        const h = Number(m[1]), min = Number(m[2]);
+        if (h > 23 || min > 59) return value.trim();
+        return String(h).padStart(2,'0') + ':' + String(min).padStart(2,'0');
+      }
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.addEventListener('blur', () => {
+          const normalized = normalizeTime(el.value);
+          if (normalized !== el.value) {
+            el.value = normalized;
+            el.dispatchEvent(new Event('input', {bubbles:true}));
+            el.dispatchEvent(new Event('change', {bubbles:true}));
+          }
+        });
+      }
+    })();
+</script>
+
+<script>
+    (function () {
+        const timeFields = [
+            "start",
+            "end",
+            "templateStart",
+            "templateEnd",
+            "nightStart",
+            "nightEnd"
+        ];
+
+        timeFields.forEach(id => {
+            const input = document.getElementById(id);
+
+            if (!input) return;
+
+            input.readOnly = true;
+            input.setAttribute("inputmode", "none");
+
+            input.addEventListener("click", function (event) {
+                event.preventDefault();
+
+                if (window.AndroidTime) {
+                    AndroidTime.openTimePicker(
+                        id,
+                        input.value || "08:00"
+                    );
+                } else {
+                    notify("AndroidTime не підключений");
+                }
+            });
+        });
+    })();
+</script>
+
+<script>
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+}
+</script>
+</body></html>
+
